@@ -446,12 +446,19 @@ public class SYNR {
         }
     }
 
-    static void runInBackground(String name, String path, String command) {
+    public static void runInBackground(String name, String path, String command) {
         try {
             printStatus("Starting process: " + name, "info");
-            
-            String[] parts = command.trim().split("\\s+");
-            ProcessBuilder builder = new ProcessBuilder(parts);
+
+            // Detect OS and wrap command for shell execution
+            String[] commandLine;
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                commandLine = new String[]{"cmd", "/c", command};
+            } else {
+                commandLine = new String[]{"sh", "-c", command};
+            }
+
+            ProcessBuilder builder = new ProcessBuilder(commandLine);
             builder.directory(new File(path));
             builder.redirectErrorStream(true);
 
@@ -459,6 +466,7 @@ public class SYNR {
             processMap.put(name, process);
             outputLog.put(name, new ArrayList<>());
 
+            // Read output in separate thread
             new Thread(() -> {
                 try (Scanner s = new Scanner(process.getInputStream())) {
                     while (s.hasNextLine()) {
