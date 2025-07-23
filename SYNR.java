@@ -3,6 +3,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,7 +11,8 @@ import java.io.IOException;
 public class SYNR {
     static Map<String, Process> processMap = new HashMap<>();
     static Map<String, List<String>> outputLog = new HashMap<>();
-    
+    static Map<String, Thread> outputThreads = new HashMap<>();
+
     // Color constants for modern styling
     static final String RESET = "\u001B[0m";
     static final String BOLD = "\u001B[1m";
@@ -19,7 +21,7 @@ public class SYNR {
     static final String UNDERLINE = "\u001B[4m";
     static final String BLINK = "\u001B[5m";
     static final String REVERSE = "\u001B[7m";
-    
+
     // RGB colors for modern design
     static final String CYBER_BLUE = "\u001B[38;2;0;255;255m";
     static final String NEON_GREEN = "\u001B[38;2;57;255;20m";
@@ -31,57 +33,57 @@ public class SYNR {
     static final String DARK_GRAY = "\u001B[38;2;64;64;64m";
     static final String LIGHT_GRAY = "\u001B[38;2;128;128;128m";
     static final String WHITE = "\u001B[38;2;255;255;255m";
-    
+
     // Background colors
     static final String BG_DARK = "\u001B[48;2;20;20;20m";
     static final String BG_ACCENT = "\u001B[48;2;40;40;60m";
 
     static void logoSYNR() {
-    String[] logo = {
-        "  ███████╗██╗   ██╗███╗   ██╗██████╗ ",
-        "  ██╔════╝╚██╗ ██╔╝████╗  ██║██╔══██╗",
-        "  ███████╗ ╚████╔╝ ██╔██╗ ██║██████╔╝",
-        "  ╚════██║  ╚██╔╝  ██║╚██╗██║██╔══██╗",
-        "  ███████║   ██║   ██║ ╚████║██║  ██║",
-        "  ╚══════╝   ╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝"
-    };
+        String[] logo = {
+                "  ███████╗██╗   ██╗███╗   ██╗██████╗ ",
+                "  ██╔════╝╚██╗ ██╔╝████╗  ██║██╔══██╗",
+                "  ███████╗ ╚████╔╝ ██╔██╗ ██║██████╔╝",
+                "  ╚════██║  ╚██╔╝  ██║╚██╗██║██╔══██╗",
+                "  ███████║   ██║   ██║ ╚████║██║  ██║",
+                "  ╚══════╝   ╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝"
+        };
 
-    for (String line : logo) {
-        for (int i = 0; i < line.length(); i++) {
-            double progress = (double) i / line.length();
-            String color;
+        for (String line : logo) {
+            for (int i = 0; i < line.length(); i++) {
+                double progress = (double) i / line.length();
+                String color;
 
-            if (progress < 0.3) {
-                color = CYBER_BLUE;
-            } else if (progress < 0.6) {
-                color = ELECTRIC_PURPLE;
-            } else {
-                color = HOT_PINK;
+                if (progress < 0.3) {
+                    color = CYBER_BLUE;
+                } else if (progress < 0.6) {
+                    color = ELECTRIC_PURPLE;
+                } else {
+                    color = HOT_PINK;
+                }
+
+                char ch = line.charAt(i);
+                if (ch != ' ') {
+                    System.out.print(BOLD + color + ch + RESET);
+                } else {
+                    System.out.print(" ");
+                }
             }
-
-            char ch = line.charAt(i);
-            if (ch != ' ') {
-                System.out.print(BOLD + color + ch + RESET);
-            } else {
-                System.out.print(" ");
-            }
+            System.out.println();
         }
+
+        System.out.println();
+        System.out.println(ITALIC + SILVER + "Synchronized Yield and Runtime" + RESET);
         System.out.println();
     }
-
-    System.out.println();
-    System.out.println(ITALIC + SILVER + "Synchronized Yield and Runtime" + RESET);
-    System.out.println();
-}
-
 
     static void printHeader(String title) {
         int width = 55;
         String paddedTitle = " " + title + " ";
         int padding = (width - paddedTitle.length()) / 2;
-        
+
         System.out.println(CYBER_BLUE + "╔" + "═".repeat(width) + "╗" + RESET);
-        System.out.println(CYBER_BLUE + "║" + " ".repeat(padding) + BOLD + WHITE + paddedTitle + RESET + " ".repeat(width - padding - paddedTitle.length()) + CYBER_BLUE + "║" + RESET);
+        System.out.println(CYBER_BLUE + "║" + " ".repeat(padding) + BOLD + WHITE + paddedTitle + RESET
+                + " ".repeat(width - padding - paddedTitle.length()) + CYBER_BLUE + "║" + RESET);
         System.out.println(CYBER_BLUE + "╚" + "═".repeat(width) + "╝" + RESET);
         System.out.println();
     }
@@ -91,8 +93,8 @@ public class SYNR {
     }
 
     static void printMenuItem(String key, String description, String icon) {
-        System.out.println("  " + BOLD + CYBER_BLUE + "[" + key + "]" + RESET + " " + 
-                          icon + " " + NEON_GREEN + description + RESET);
+        System.out.println("  " + BOLD + CYBER_BLUE + "[" + key + "]" + RESET + " " +
+                icon + " " + NEON_GREEN + description + RESET);
     }
 
     static void printStatus(String message, String type) {
@@ -136,7 +138,7 @@ public class SYNR {
                 Scanner scanner = new Scanner(System.in);
                 printHeader("INITIAL SETUP");
                 printStatus("First time setup detected", "info");
-                
+
                 String directory = promptWithBox("📁 Enter Directory Path for SYNR Data", scanner, "🔧");
                 String content = "directory=" + directory + "\n";
 
@@ -212,11 +214,11 @@ public class SYNR {
         printMenuItem("Q", "Exit System", "🚪");
         System.out.println();
         printSeparator();
-        
+
         while (true) {
             Scanner scanner = new Scanner(System.in);
             String command = promptWithBox("Enter Command", scanner, "⚡");
-            
+
             switch (command.toUpperCase()) {
                 case "P":
                     clearScreenAndScrollback();
@@ -249,17 +251,17 @@ public class SYNR {
         int minWidth = 50;
         int labelWidth = label.length() + icon.length() + 3;
         int boxWidth = Math.max(minWidth, labelWidth + 10);
-        
+
         // Modern box design with rounded corners
         String top = CYBER_BLUE + "╭" + "─".repeat(boxWidth) + "╮" + RESET;
-        String middle = CYBER_BLUE + "│" + RESET + " " + icon + "  " + BOLD + WHITE + label + RESET + 
-                       " ".repeat(boxWidth - labelWidth - 1) + CYBER_BLUE + "│" + RESET;
-        String inputLine = CYBER_BLUE + "╰" + "─".repeat(boxWidth/2) + "▶ " + RESET;
-        
+        String middle = CYBER_BLUE + "│" + RESET + " " + icon + "  " + BOLD + WHITE + label + RESET +
+                " ".repeat(boxWidth - labelWidth - 1) + CYBER_BLUE + "│" + RESET;
+        String inputLine = CYBER_BLUE + "╰" + "─".repeat(boxWidth / 2) + "▶ " + RESET;
+
         System.out.println(top);
         System.out.println(middle);
         System.out.print(inputLine + NEON_GREEN);
-        
+
         String input = scanner.nextLine();
         System.out.print(RESET);
         return input;
@@ -395,11 +397,12 @@ public class SYNR {
     static void addControlpanal(String name, String path, String command) {
         String finalName = name.isEmpty() ? ITALIC + DARK_GRAY + "(not set)" + RESET : NEON_GREEN + name + RESET;
         String finalPath = path.isEmpty() ? ITALIC + DARK_GRAY + "(not set)" + RESET : CYBER_BLUE + path + RESET;
-        String finalCommand = command.isEmpty() ? ITALIC + DARK_GRAY + "(not set)" + RESET : ELECTRIC_PURPLE + command + RESET;
+        String finalCommand = command.isEmpty() ? ITALIC + DARK_GRAY + "(not set)" + RESET
+                : ELECTRIC_PURPLE + command + RESET;
 
         printHeader("ADD NEW CONTROL PANEL");
         System.out.println();
-        
+
         System.out.println("  " + BOLD + GOLD + "[1]" + RESET + " 🏷️  Name     : " + finalName);
         System.out.println("  " + BOLD + GOLD + "[2]" + RESET + " 📁 Path     : " + finalPath);
         System.out.println("  " + BOLD + GOLD + "[3]" + RESET + " ⚡ Command  : " + finalCommand);
@@ -453,9 +456,9 @@ public class SYNR {
             // Detect OS and wrap command for shell execution
             String[] commandLine;
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                commandLine = new String[]{"cmd", "/c", command};
+                commandLine = new String[] { "cmd", "/c", command };
             } else {
-                commandLine = new String[]{"sh", "-c", command};
+                commandLine = new String[] { "sh", "-c", command };
             }
 
             ProcessBuilder builder = new ProcessBuilder(commandLine);
@@ -527,14 +530,65 @@ public class SYNR {
     }
 
     static void stopCommand(String name) {
-        Process p = processMap.get(name);
-        if (p != null && p.isAlive()) {
-            p.destroy();
+        Process process = processMap.get(name);
+        Thread outputThread = outputThreads.get(name);
+
+        if (process != null) {
+            printStatus("Attempting to stop process: " + name, "info");
+
+            // หยุด output thread ก่อน
+            if (outputThread != null && outputThread.isAlive()) {
+                outputThread.interrupt();
+                try {
+                    outputThread.join(2000); // รอ 2 วินาที
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                outputThreads.remove(name);
+            }
+
+            // ตรวจสอบว่าโปรเซสยังทำงานอยู่หรือไม่
+            if (process.isAlive()) {
+                // ลองหยุดแบบ graceful ก่อน
+                process.destroy();
+
+                try {
+                    // รอให้โปรเซสหยุด 5 วินาที
+                    boolean terminated = process.waitFor(5, TimeUnit.SECONDS);
+
+                    if (!terminated) {
+                        printStatus("Process not responding, forcing termination...", "warning");
+                        // ถ้ายังไม่หยุด ให้ใช้ destroyForcibly
+                        process.destroyForcibly();
+
+                        // รออีก 3 วินาที
+                        terminated = process.waitFor(3, TimeUnit.SECONDS);
+
+                        if (terminated) {
+                            printStatus("Process force terminated: " + name, "success");
+                        } else {
+                            printStatus("Failed to terminate process: " + name, "error");
+                            return;
+                        }
+                    } else {
+                        printStatus("Process stopped gracefully: " + name, "success");
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    printStatus("Interruption while stopping process: " + name, "error");
+                    return;
+                }
+            } else {
+                printStatus("Process was already stopped: " + name, "info");
+            }
+
+            // ลบออกจาก maps
             processMap.remove(name);
             outputLog.remove(name);
-            printStatus("Process stopped: " + name, "success");
+
         } else {
-            printStatus("No running process found: " + name, "warning");
+            printStatus("No process found with name: " + name, "warning");
         }
     }
 
@@ -547,7 +601,8 @@ public class SYNR {
             printHeader("EDIT CONTROL PANEL - " + name);
             System.out.println();
             System.out.println("  " + BOLD + GOLD + "[1]" + RESET + " 📁 Path    : " + CYBER_BLUE + newPath + RESET);
-            System.out.println("  " + BOLD + GOLD + "[2]" + RESET + " ⚡ Command : " + ELECTRIC_PURPLE + newCommand + RESET);
+            System.out.println(
+                    "  " + BOLD + GOLD + "[2]" + RESET + " ⚡ Command : " + ELECTRIC_PURPLE + newCommand + RESET);
             System.out.println();
             printSeparator();
             System.out.println("  " + BOLD + NEON_GREEN + "[S]" + RESET + " 💾 Save Changes");
@@ -583,10 +638,10 @@ public class SYNR {
         printHeader("DELETE CONTROL PANEL");
         printStatus("⚠️  This action cannot be undone!", "warning");
         System.out.println();
-        
+
         Scanner scanner = new Scanner(System.in);
         String confirmation = promptWithBox("Type 'YES' to confirm deletion", scanner, "🔐");
-        
+
         if (confirmation.equalsIgnoreCase("YES")) {
             File configFile = new File("./.mainconfig");
             if (!configFile.exists()) {
@@ -651,7 +706,7 @@ public class SYNR {
                         writer.write(l + "\n");
                     }
                 }
-                
+
                 clearScreenAndScrollback();
                 printStatus("Control panel deleted: " + name, "success");
                 stopCommand(name);
@@ -678,7 +733,7 @@ public class SYNR {
             System.out.println();
             printSeparator();
             System.out.println();
-            
+
             printMenuItem("1", "Run Process", "🚀");
             printMenuItem("2", "Stop Process", "⏹️");
             printMenuItem("3", "Monitor Output", "📊");
@@ -748,10 +803,10 @@ public class SYNR {
                 printStatus("No control panels found", "info");
                 System.out.println();
                 printMenuItem("B", "Back to Panel Menu", "⬅️");
-                
+
                 Scanner input = new Scanner(System.in);
                 String selected = promptWithBox("Press B to go back", input, "🎯");
-                
+
                 if (selected.equalsIgnoreCase("B")) {
                     clearScreenAndScrollback();
                     boardpanal();
@@ -785,10 +840,10 @@ public class SYNR {
                     printStatus("No control panels configured", "info");
                     System.out.println();
                     printMenuItem("B", "Back to Panel Menu", "⬅️");
-                    
+
                     Scanner input = new Scanner(System.in);
                     String selected = promptWithBox("Press B to go back", input, "🎯");
-                    
+
                     if (selected.equalsIgnoreCase("B")) {
                         clearScreenAndScrollback();
                         boardpanal();
@@ -799,20 +854,20 @@ public class SYNR {
                 // Enhanced panel listing with better formatting
                 printHeader("CONTROL PANELS");
                 System.out.println();
-                
+
                 for (int i = 0; i < panels.size(); i++) {
                     String[] panel = panels.get(i);
-                    String status = processMap.containsKey(panel[0]) && processMap.get(panel[0]).isAlive() ? 
-                                   NEON_GREEN + "🟢 RUNNING" + RESET : 
-                                   DARK_GRAY + "⚫ STOPPED" + RESET;
-                    
-                    System.out.println("  " + BOLD + CYBER_BLUE + "[" + (i + 1) + "]" + RESET + " " + 
-                                      BOLD + WHITE + panel[0] + RESET + " " + status);
+                    String status = processMap.containsKey(panel[0]) && processMap.get(panel[0]).isAlive()
+                            ? NEON_GREEN + "🟢 RUNNING" + RESET
+                            : DARK_GRAY + "⚫ STOPPED" + RESET;
+
+                    System.out.println("  " + BOLD + CYBER_BLUE + "[" + (i + 1) + "]" + RESET + " " +
+                            BOLD + WHITE + panel[0] + RESET + " " + status);
                     System.out.println("      " + DIM + LIGHT_GRAY + "📁 " + panel[1] + RESET);
                     System.out.println("      " + DIM + LIGHT_GRAY + "⚡ " + panel[2] + RESET);
                     System.out.println();
                 }
-                
+
                 printSeparator();
                 System.out.println();
                 printMenuItem("B", "Back to Panel Menu", "⬅️");
@@ -841,7 +896,7 @@ public class SYNR {
                     }
                 } catch (NumberFormatException e) {
                     printStatus("Please enter a valid number", "error");
-                    
+
                     clearScreenAndScrollback();
                     listControlpanals();
                 } catch (InterruptedException e) {
@@ -865,11 +920,11 @@ public class SYNR {
         printMenuItem("B", "Back to Main Menu", "⬅️");
         System.out.println();
         printSeparator();
-        
+
         while (true) {
             Scanner scanner = new Scanner(System.in);
             String command = promptWithBox("Select Option", scanner, "🎯");
-            
+
             switch (command.toUpperCase()) {
                 case "A":
                     clearScreenAndScrollback();
@@ -893,7 +948,7 @@ public class SYNR {
     // Enhanced startup sequence
     static void startupSequence() {
         clearScreenAndScrollback();
-        
+
         // Loading animation
         System.out.println();
         System.out.println();
@@ -907,27 +962,27 @@ public class SYNR {
             }
         }
         System.out.println(" " + NEON_GREEN + "✓" + RESET);
-        
+
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         clearScreenAndScrollback();
         logoSYNR();
-        
+
         // Welcome message
-        System.out.println("  " + BOLD + CYBER_BLUE + "Welcome to SYNR" + RESET + " - " + 
-                          ITALIC + SILVER + "Your Advanced Process Control System" + RESET);
+        System.out.println("  " + BOLD + CYBER_BLUE + "Welcome to SYNR" + RESET + " - " +
+                ITALIC + SILVER + "Your Advanced Process Control System" + RESET);
         System.out.println();
-        
+
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         clearScreenAndScrollback();
     }
 
